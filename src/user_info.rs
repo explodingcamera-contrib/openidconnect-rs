@@ -422,7 +422,7 @@ where
         self.audiences.as_ref()
     }
 }
-impl<'a, AC, GC> AudiencesClaim for &'a UserInfoClaimsImpl<AC, GC>
+impl<AC, GC> AudiencesClaim for &UserInfoClaimsImpl<AC, GC>
 where
     AC: AdditionalClaims,
     GC: GenderClaim,
@@ -441,7 +441,7 @@ where
         self.issuer.as_ref()
     }
 }
-impl<'a, AC, GC> IssuerClaim for &'a UserInfoClaimsImpl<AC, GC>
+impl<AC, GC> IssuerClaim for &UserInfoClaimsImpl<AC, GC>
 where
     AC: AdditionalClaims,
     GC: GenderClaim,
@@ -554,18 +554,17 @@ mod tests {
 
     #[test]
     fn test_additional_claims() {
-        let claims =
-            UserInfoClaims::<TestClaims, CoreGenderClaim>::from_json::<crate::reqwest::Error>(
-                "{
+        let claims = UserInfoClaims::<TestClaims, CoreGenderClaim>::from_json::<std::io::Error>(
+            "{
                 \"iss\": \"https://server.example.com\",
                 \"sub\": \"24400320\",
                 \"aud\": [\"s6BhdRkqt3\"],
                 \"tfa_method\": \"u2f\"
             }"
-                .as_bytes(),
-                None,
-            )
-            .expect("failed to deserialize");
+            .as_bytes(),
+            None,
+        )
+        .expect("failed to deserialize");
         assert_eq!(claims.additional_claims().tfa_method, "u2f");
         assert_eq!(
             serde_json::to_string(&claims).expect("failed to serialize"),
@@ -577,7 +576,7 @@ mod tests {
              }",
         );
 
-        UserInfoClaims::<TestClaims, CoreGenderClaim>::from_json::<crate::reqwest::Error>(
+        UserInfoClaims::<TestClaims, CoreGenderClaim>::from_json::<std::io::Error>(
             "{
                 \"iss\": \"https://server.example.com\",
                 \"sub\": \"24400320\",
@@ -596,7 +595,7 @@ mod tests {
     #[test]
     fn test_catch_all_additional_claims() {
         let claims =
-            UserInfoClaims::<AllOtherClaims, CoreGenderClaim>::from_json::<crate::reqwest::Error>(
+            UserInfoClaims::<AllOtherClaims, CoreGenderClaim>::from_json::<std::io::Error>(
                 "{
                 \"iss\": \"https://server.example.com\",
                 \"sub\": \"24400320\",

@@ -81,8 +81,14 @@ pub fn verify_rsa_signature(
     // according to https://datatracker.ietf.org/doc/html/rfc7518#section-6.3.1.1
     // `n` is always unsigned (hence has sign plus)
 
-    let n_bigint = rsa::BigUint::from_bytes_be(n.deref());
-    let e_bigint = rsa::BigUint::from_bytes_be(e.deref());
+    let n_bytes = n.deref();
+    let e_bytes = e.deref();
+    let n_bigint = rsa::BoxedUint::from_be_slice_vartime(
+        &n_bytes[n_bytes.iter().position(|byte| *byte != 0).unwrap_or(0)..],
+    );
+    let e_bigint = rsa::BoxedUint::from_be_slice_vartime(
+        &e_bytes[e_bytes.iter().position(|byte| *byte != 0).unwrap_or(0)..],
+    );
     let public_key = rsa::RsaPublicKey::new(n_bigint, e_bigint)
         .map_err(|e| SignatureVerificationError::InvalidKey(e.to_string()))?;
 
@@ -96,7 +102,6 @@ pub fn verify_rsa_signature(
 /// According to https://briansmith.org/rustdoc/ring/signature/index.html#ecdsa__fixed-details-fixed-length-pkcs11-style-ecdsa-signatures,
 /// to recover the X and Y coordinates from an octet string, the Octet-String-To-Elliptic-Curve-Point Conversion
 /// is used (Section 2.3.4 of https://www.secg.org/sec1-v2.pdf).
-
 pub fn verify_ec_signature(
     key: &CoreJsonWebKey,
     msg: &[u8],

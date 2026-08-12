@@ -1205,7 +1205,7 @@ fn test_user_info_verified_claims() {
 
     // JSON response (default args)
     assert_eq!(
-        CoreUserInfoClaims::from_json::<crate::reqwest::Error>(json_claims.as_bytes(), Some(&sub))
+        CoreUserInfoClaims::from_json::<std::io::Error>(json_claims.as_bytes(), Some(&sub))
             .expect("verification should succeed")
             .name()
             .unwrap()
@@ -1215,7 +1215,7 @@ fn test_user_info_verified_claims() {
     );
 
     // Invalid subject
-    match CoreUserInfoClaims::from_json::<crate::reqwest::Error>(
+    match CoreUserInfoClaims::from_json::<std::io::Error>(
         json_claims.as_bytes(),
         Some(&SubjectIdentifier::new("wrong_subject".to_string())),
     ) {

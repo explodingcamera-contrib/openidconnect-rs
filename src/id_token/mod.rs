@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, skip_serializing_none};
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -172,22 +172,23 @@ where
             .signing_key(self.0.unverified_header().kid.as_ref(), self.signing_alg()?)
     }
 }
-impl<AC, GC, JE, JS> ToString for IdToken<AC, GC, JE, JS>
+impl<AC, GC, JE, JS> Display for IdToken<AC, GC, JE, JS>
 where
     AC: AdditionalClaims,
     GC: GenderClaim,
     JE: JweContentEncryptionAlgorithm<KeyType = JS::KeyType>,
     JS: JwsSigningAlgorithm,
 {
-    fn to_string(&self) -> String {
-        serde_json::to_value(self)
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_value(self)
             // This should never arise, since we're just asking serde_json to serialize the
             // signing input concatenated with the signature, both of which are precomputed.
             .expect("ID token serialization failed")
             .as_str()
             // This should also never arise, since our IdToken serializer always calls serialize_str
             .expect("ID token serializer did not produce a str")
-            .to_owned()
+            .to_owned();
+        formatter.write_str(&value)
     }
 }
 
@@ -345,7 +346,7 @@ where
         Some(IdTokenClaims::audiences(self))
     }
 }
-impl<'a, AC, GC> AudiencesClaim for &'a IdTokenClaims<AC, GC>
+impl<AC, GC> AudiencesClaim for &IdTokenClaims<AC, GC>
 where
     AC: AdditionalClaims,
     GC: GenderClaim,
@@ -363,7 +364,7 @@ where
         Some(IdTokenClaims::issuer(self))
     }
 }
-impl<'a, AC, GC> IssuerClaim for &'a IdTokenClaims<AC, GC>
+impl<AC, GC> IssuerClaim for &IdTokenClaims<AC, GC>
 where
     AC: AdditionalClaims,
     GC: GenderClaim,
