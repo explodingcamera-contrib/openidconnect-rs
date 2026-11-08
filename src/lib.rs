@@ -63,11 +63,11 @@
 //!
 //!    Synchronous client: [`CurlHttpClient`]
 //!
-//! * **[`ureq`]**
+//!  * **[`ureq`]**
 //!
-//!   The `ureq` HTTP client is a simple HTTP client with minimal dependencies. It only supports
-//!   the synchronous HTTP client mode and can be enabled in `Cargo.toml` via the `ureq` feature
-//!   flag.
+//!    The `ureq` HTTP client is a simple HTTP client with minimal dependencies. It only supports
+//!    the synchronous HTTP client mode and can be enabled in `Cargo.toml` via the `ureq` feature
+//!    flag.
 //!
 //!    Synchronous client: [`ureq::Agent`]
 //!

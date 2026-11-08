@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, skip_serializing_none};
 
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -145,10 +145,7 @@ where
             JsonWebTokenAlgorithm::Encryption(ref other) => {
                 Err(SignatureVerificationError::UnsupportedAlg(
                     serde_plain::to_string(other).unwrap_or_else(|err| {
-                        panic!(
-                            "encryption alg {:?} failed to serialize to a string: {}",
-                            other, err
-                        )
+                        panic!("encryption alg {other:?} failed to serialize to a string: {err}")
                     }),
                 ))
             }
@@ -179,16 +176,16 @@ where
     JE: JweContentEncryptionAlgorithm<KeyType = JS::KeyType>,
     JS: JwsSigningAlgorithm,
 {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = serde_json::to_value(self)
             // This should never arise, since we're just asking serde_json to serialize the
             // signing input concatenated with the signature, both of which are precomputed.
-            .expect("ID token serialization failed")
+            .expect("ID token serialization failed");
+        let str = value
             .as_str()
             // This should also never arise, since our IdToken serializer always calls serialize_str
-            .expect("ID token serializer did not produce a str")
-            .to_owned();
-        formatter.write_str(&value)
+            .expect("ID token serializer did not produce a str");
+        write!(f, "{str}")
     }
 }
 

@@ -96,6 +96,7 @@ pub fn verify_rsa_signature(
         .verify(padding, msg, signature)
         .map_err(|_| SignatureVerificationError::CryptoError("bad signature".to_string()))
 }
+
 /// According to RFC5480, Section-2.2 implementations of Elliptic Curve Cryptography MUST support the uncompressed form.
 /// The first octet of the octet string indicates whether the uncompressed or compressed form is used. For the uncompressed
 /// form, the first octet has to be 0x04.
