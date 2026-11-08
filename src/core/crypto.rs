@@ -89,7 +89,7 @@ pub fn verify_rsa_signature(
     let e_bigint = rsa::BoxedUint::from_be_slice_vartime(
         &e_bytes[e_bytes.iter().position(|byte| *byte != 0).unwrap_or(0)..],
     );
-    let public_key = rsa::RsaPublicKey::new(n_bigint, e_bigint)
+    let public_key = rsa::PublicKey::new(n_bigint, e_bigint)
         .map_err(|e| SignatureVerificationError::InvalidKey(e.to_string()))?;
 
     public_key

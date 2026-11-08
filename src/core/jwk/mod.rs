@@ -533,7 +533,7 @@ impl PrivateSigningKey for CoreEdDsaPrivateSigningKey {
 /// This key can be used for signing messages, or converted to a `CoreJsonWebKey` for verifying
 /// them.
 pub struct CoreRsaPrivateSigningKey {
-    key_pair: rsa::RsaPrivateKey,
+    key_pair: rsa::PrivateKey,
     rng: std::sync::Mutex<Box<dyn rsa::rand_core::CryptoRng + Send>>,
     kid: Option<JsonWebKeyId>,
 }
@@ -548,7 +548,7 @@ impl CoreRsaPrivateSigningKey {
         rng: Box<dyn rsa::rand_core::CryptoRng + Send>,
         kid: Option<JsonWebKeyId>,
     ) -> Result<Self, String> {
-        let key_pair = rsa::RsaPrivateKey::from_pkcs1_pem(pem).map_err(|err| err.to_string())?;
+        let key_pair = rsa::PrivateKey::from_pkcs1_pem(pem).map_err(|err| err.to_string())?;
         Ok(Self {
             key_pair,
             rng: std::sync::Mutex::new(rng),
