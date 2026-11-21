@@ -1,3 +1,4 @@
+use crate::helpers::deserialize_vec_skip_invalid;
 use crate::http_utils::{check_content_type, MIME_TYPE_JSON, MIME_TYPE_JWKS};
 use crate::types::jwk::{JsonWebKey, JsonWebKeyId, JwsSigningAlgorithm};
 use crate::{
@@ -7,7 +8,6 @@ use crate::{
 use http::header::ACCEPT;
 use http::{HeaderValue, Method, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, VecSkipError};
 
 use std::future::Future;
 
@@ -17,18 +17,17 @@ new_url_type![
 ];
 
 /// JSON Web Key Set.
-#[serde_as]
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct JsonWebKeySet<K>
 where
     K: JsonWebKey,
 {
-    // FIXME: write a test that ensures duplicate object member names cause an error
-    // (see https://tools.ietf.org/html/rfc7517#section-5)
-    #[serde(bound = "K: JsonWebKey")]
     // Ignores invalid keys rather than failing. That way, clients can function using the keys that
     // they do understand, which is fine if they only ever get JWTs signed with those keys.
-    #[serde_as(as = "VecSkipError<_>")]
+    #[serde(
+        bound = "K: JsonWebKey",
+        deserialize_with = "deserialize_vec_skip_invalid"
+    )]
     keys: Vec<K>,
 }
 

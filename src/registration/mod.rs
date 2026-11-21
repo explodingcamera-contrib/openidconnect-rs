@@ -1,4 +1,4 @@
-use crate::helpers::{DeserializeMapField, Timestamp};
+use crate::helpers::{serde_timestamp, DeserializeMapField};
 use crate::http_utils::{auth_bearer, check_content_type, MIME_TYPE_JSON};
 use crate::types::localized::split_language_tag_key;
 use crate::types::{
@@ -21,7 +21,6 @@ use http::status::StatusCode;
 use serde::de::{DeserializeOwned, Deserializer, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize, Serializer};
-use serde_with::{serde_as, skip_serializing_none};
 use thiserror::Error;
 
 use std::fmt::{Debug, Formatter, Result as FormatterResult};
@@ -732,8 +731,6 @@ pub struct EmptyAdditionalClientRegistrationResponse {}
 impl AdditionalClientRegistrationResponse for EmptyAdditionalClientRegistrationResponse {}
 
 /// Response to a dynamic client registration request.
-#[serde_as]
-#[skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ClientRegistrationResponse<AC, AR, AT, CA, G, JE, JK, K, RT, S>
 where
@@ -751,12 +748,23 @@ where
     S: SubjectIdentifierType,
 {
     client_id: ClientId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     client_secret: Option<ClientSecret>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     registration_access_token: Option<RegistrationAccessToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     registration_client_uri: Option<ClientConfigUrl>,
-    #[serde_as(as = "Option<Timestamp>")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_timestamp::option"
+    )]
     client_id_issued_at: Option<DateTime<Utc>>,
-    #[serde_as(as = "Option<Timestamp>")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_timestamp::option"
+    )]
     client_secret_expires_at: Option<DateTime<Utc>>,
     #[serde(bound = "AC: AdditionalClientMetadata", flatten)]
     client_metadata: ClientMetadata<AC, AT, CA, G, JE, JK, K, RT, S>,

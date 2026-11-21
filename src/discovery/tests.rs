@@ -973,6 +973,40 @@ fn test_discovery_deserialization_other_fields() {
 // Tests that we ignore enum values that the OIDC provider supports but that the client does
 // not (which trigger serde deserialization errors while parsing the provider metadata).
 #[test]
+fn test_optional_algorithm_list() {
+    let mut metadata = serde_json::json!({
+        "issuer": "https://example.com",
+        "authorization_endpoint": "https://example.com/auth",
+        "jwks_uri": "https://example.com/jwks",
+        "response_types_supported": ["code"],
+        "subject_types_supported": ["public"],
+        "id_token_signing_alg_values_supported": ["RS256"]
+    });
+    let field = "userinfo_signing_alg_values_supported";
+    let parsed: CoreProviderMetadata = serde_json::from_value(metadata.clone()).unwrap();
+    assert_eq!(parsed.userinfo_signing_alg_values_supported(), None);
+
+    metadata[field] = serde_json::Value::Null;
+    let parsed: CoreProviderMetadata = serde_json::from_value(metadata.clone()).unwrap();
+    assert_eq!(parsed.userinfo_signing_alg_values_supported(), None);
+    assert!(serde_json::to_value(parsed).unwrap().get(field).is_none());
+
+    metadata[field] = serde_json::json!(["MAGIC", {"unexpected": true}]);
+    let parsed: CoreProviderMetadata = serde_json::from_value(metadata.clone()).unwrap();
+    assert!(parsed
+        .userinfo_signing_alg_values_supported()
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        serde_json::to_value(parsed).unwrap()[field],
+        serde_json::json!([])
+    );
+
+    metadata[field] = serde_json::json!("RS256");
+    assert!(serde_json::from_value::<CoreProviderMetadata>(metadata).is_err());
+}
+
+#[test]
 fn test_unsupported_enum_values() {
     let json_response = "{\
             \"issuer\":\"https://rp.certification.openid.net:8080/openidconnect-rs/rp-response_type-code\",\

@@ -46,7 +46,6 @@ chrono = { version = "0.4", default-features = false, features = ["now"] }
 thiserror = "2.0"
 http = "1.5"
 itertools = "0.15"
-log = "0.4"
 oauth2 = { git = "https://github.com/explodingcamera-contrib/oauth2-rs", default-features = false }
 rand = "0.10.4"
 hmac = "0.13.0"
@@ -57,16 +56,13 @@ p384 = "0.14.0"
 serde = "1.0"
 serde_json = "1.0"
 serde_path_to_error = "0.1"
-serde_plain = "1.0"
-serde_with = "3"
-serde-value = "0.7"
 url = { version = "2.5", features = ["serde"] }
-subtle = "2.6"
 ed25519-dalek = { version = "3.0.0", features = ["pem"] }
 
 [dev-dependencies]
 color-backtrace = { version = "0.7" }
 env_logger = "0.11"
+log = "0.4"
 pretty_assertions = "1.4"
 reqwest = { version = "0.13", features = ["blocking", "rustls"], default-features = false }
 retry = "2.3"

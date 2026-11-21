@@ -648,6 +648,32 @@ fn test_additional_claims() {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "method")]
+enum TaggedClaims {
+    #[serde(rename = "u2f")]
+    U2f { device: String },
+}
+impl AdditionalClaims for TaggedClaims {}
+
+#[test]
+fn test_tagged_additional_claims() {
+    let claims: IdTokenClaims<TaggedClaims, CoreGenderClaim> = serde_json::from_str(
+        r#"{
+            "iss": "https://server.example.com",
+            "sub": "24400320",
+            "name#en": "Alice",
+            "exp": 1311281970,
+            "iat": 1311280970,
+            "method": "u2f",
+            "device": "security key"
+        }"#,
+    )
+    .unwrap();
+    let TaggedClaims::U2f { device } = claims.additional_claims();
+    assert_eq!(device, "security key");
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 struct AllOtherClaims(HashMap<String, serde_json::Value>);
 impl AdditionalClaims for AllOtherClaims {}
 

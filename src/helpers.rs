@@ -2,16 +2,27 @@ use crate::types::localized::join_language_tag_key;
 use crate::{LanguageTag, LocalizedClaim};
 
 use chrono::{DateTime, TimeZone, Utc};
-use serde::de::value::MapDeserializer;
-use serde::de::{DeserializeOwned, Deserializer, Error, MapAccess, Visitor};
+use serde::de::value::{MapAccessDeserializer, StringDeserializer};
+use serde::de::{
+    DeserializeOwned, DeserializeSeed, Deserializer, Error, IgnoredAny, MapAccess, Visitor,
+};
 use serde::{Deserialize, Serialize, Serializer};
-use serde_json::from_value;
-use serde_value::ValueDeserializer;
-use serde_with::{DeserializeAs, SerializeAs};
+use serde_json::{from_value, Value};
 
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Display, Formatter, Result as FormatterResult};
 use std::marker::PhantomData;
+
+/// Returns the serialized name of an algorithm or key type without JSON quoting.
+pub(crate) fn serialize_identifier(value: &impl Serialize) -> Result<String, serde_json::Error> {
+    match serde_json::to_value(value)? {
+        Value::String(name) => Ok(name),
+        Value::Number(number) => Ok(number.to_string()),
+        Value::Bool(boolean) => Ok(boolean.to_string()),
+        Value::Null => Ok(String::new()),
+        _ => Err(serde::ser::Error::custom("expected a scalar identifier")),
+    }
+}
 
 pub(crate) fn deserialize_string_or_vec<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
@@ -60,6 +71,46 @@ where
         Ok(val) => Ok(val),
         Err(_) => Ok(None),
     }
+}
+
+// Buffer each entry before trying T, so a failed parse can't leave the sequence
+// deserializer partway through an entry. Invalid sequence syntax still fails.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SequenceEntry<T> {
+    Valid(T),
+    Invalid(IgnoredAny),
+}
+
+/// Deserializes a sequence, skipping entries that cannot be deserialized as `T`.
+pub(crate) fn deserialize_vec_skip_invalid<'de, T, D>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Vec::<SequenceEntry<T>>::deserialize(deserializer).map(valid_entries)
+}
+
+/// Deserializes an optional sequence, skipping invalid entries and preserving `None`.
+pub(crate) fn deserialize_vec_skip_invalid_opt<'de, T, D>(
+    deserializer: D,
+) -> Result<Option<Vec<T>>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Option::<Vec<SequenceEntry<T>>>::deserialize(deserializer)
+        .map(|entries| entries.map(valid_entries))
+}
+
+fn valid_entries<T>(entries: Vec<SequenceEntry<T>>) -> Vec<T> {
+    entries
+        .into_iter()
+        .filter_map(|entry| match entry {
+            SequenceEntry::Valid(value) => Some(value),
+            SequenceEntry::Invalid(_) => None,
+        })
+        .collect()
 }
 
 pub trait DeserializeMapField: Sized {
@@ -211,9 +262,7 @@ where
     F: FlattenFilter,
     T: DeserializeOwned + Serialize,
 {
-    // We include another level of flattening here because the derived flatten
-    // ([`serde::private::de::FlatMapDeserializer`]) seems to support a wider set of types
-    // (e.g., various forms of enum tagging) than [`serde_value::ValueDeserializer`].
+    // Keep Serde's derived flattening to support maps, structs, and tagged enums.
     #[serde(flatten)]
     inner: Flatten<T>,
     #[serde(skip)]
@@ -283,6 +332,35 @@ where
     }
 }
 
+struct FilteredMapAccess<F, M> {
+    inner: M,
+    filter: PhantomData<F>,
+}
+
+impl<'de, F: FlattenFilter, M: MapAccess<'de>> MapAccess<'de> for FilteredMapAccess<F, M> {
+    type Error = M::Error;
+
+    fn next_key_seed<S: DeserializeSeed<'de>>(
+        &mut self,
+        seed: S,
+    ) -> Result<Option<S::Value>, Self::Error> {
+        while let Some(key) = self.inner.next_key::<String>()? {
+            if F::should_include(&key) {
+                return seed.deserialize(StringDeserializer::new(key)).map(Some);
+            }
+            self.inner.next_value::<IgnoredAny>()?;
+        }
+        Ok(None)
+    }
+
+    fn next_value_seed<S: DeserializeSeed<'de>>(
+        &mut self,
+        seed: S,
+    ) -> Result<S::Value, Self::Error> {
+        self.inner.next_value_seed(seed)
+    }
+}
+
 impl<'de, F, T> Deserialize<'de> for FilteredFlatten<F, T>
 where
     F: FlattenFilter,
@@ -305,21 +383,14 @@ where
                 formatter.write_str("map type T")
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+            fn visit_map<V>(self, map: V) -> Result<Self::Value, V::Error>
             where
                 V: MapAccess<'de>,
             {
-                let mut entries = Vec::<(serde_value::Value, serde_value::Value)>::new();
-                // JSON only supports String keys, and we really only need to support JSON input.
-                while let Some(key) = map.next_key::<serde_value::Value>()? {
-                    let key_str = String::deserialize(ValueDeserializer::new(key.clone()))?;
-                    if F::should_include(&key_str) {
-                        entries.push((key, map.next_value()?));
-                    }
-                }
-
-                Deserialize::deserialize(MapDeserializer::new(entries.into_iter()))
-                    .map_err(serde_value::DeserializerError::into_error)
+                Deserialize::deserialize(MapAccessDeserializer::new(FilteredMapAccess {
+                    inner: map,
+                    filter: PhantomData::<F>,
+                }))
             }
         }
 
@@ -454,26 +525,59 @@ impl Display for Timestamp {
     }
 }
 
-impl<'de> DeserializeAs<'de, DateTime<Utc>> for Timestamp {
-    fn deserialize_as<D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let seconds: Timestamp = Deserialize::deserialize(deserializer)?;
-        seconds.to_utc().map_err(|_| {
-            serde::de::Error::custom(format!(
-                "failed to parse `{seconds}` as UTC datetime (in seconds)"
+/// Serde adapter for a UTC datetime represented by a [`Timestamp`].
+pub(crate) mod serde_timestamp {
+    use super::*;
+
+    fn into_utc<E: Error>(timestamp: Timestamp) -> Result<DateTime<Utc>, E> {
+        timestamp.to_utc().map_err(|_| {
+            E::custom(format!(
+                "failed to parse `{timestamp}` as UTC datetime (in seconds)"
             ))
         })
     }
-}
 
-impl SerializeAs<DateTime<Utc>> for Timestamp {
-    fn serialize_as<S>(source: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Timestamp::deserialize(deserializer).and_then(into_utc)
+    }
+
+    pub(crate) fn serialize<S>(source: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         Timestamp::from_utc(source).serialize(serializer)
+    }
+
+    /// Serde adapter for an optional UTC datetime represented by a [`Timestamp`].
+    pub(crate) mod option {
+        use super::*;
+
+        pub(crate) fn deserialize<'de, D>(
+            deserializer: D,
+        ) -> Result<Option<DateTime<Utc>>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            Option::<Timestamp>::deserialize(deserializer)?
+                .map(into_utc)
+                .transpose()
+        }
+
+        pub(crate) fn serialize<S>(
+            source: &Option<DateTime<Utc>>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            source
+                .as_ref()
+                .map(Timestamp::from_utc)
+                .serialize(serializer)
+        }
     }
 }
 

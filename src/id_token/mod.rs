@@ -1,4 +1,6 @@
-use crate::helpers::{deserialize_string_or_vec, FilteredFlatten, Timestamp};
+use crate::helpers::{
+    deserialize_string_or_vec, serde_timestamp, serialize_identifier, FilteredFlatten,
+};
 use crate::jwt::JsonWebTokenAccess;
 use crate::jwt::{JsonWebTokenError, JsonWebTokenJsonPayloadSerde};
 use crate::types::jwk::JwsSigningAlgorithm;
@@ -17,7 +19,6 @@ use crate::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::{serde_as, skip_serializing_none};
 
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
@@ -144,7 +145,7 @@ where
             JsonWebTokenAlgorithm::Signature(ref signing_alg) => Ok(signing_alg),
             JsonWebTokenAlgorithm::Encryption(ref other) => {
                 Err(SignatureVerificationError::UnsupportedAlg(
-                    serde_plain::to_string(other).unwrap_or_else(|err| {
+                    serialize_identifier(other).unwrap_or_else(|err| {
                         panic!("encryption alg {other:?} failed to serialize to a string: {err}")
                     }),
                 ))
@@ -194,8 +195,6 @@ where
     any(test, feature = "timing-resistant-secret-traits"),
     derive(PartialEq)
 )]
-#[serde_as]
-#[skip_serializing_none]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IdTokenClaims<AC, GC>
 where
@@ -213,24 +212,27 @@ where
         deserialize_with = "deserialize_string_or_vec"
     )]
     audiences: Vec<Audience>,
-    #[serde_as(as = "Timestamp")]
-    #[serde(rename = "exp")]
+    #[serde(rename = "exp", with = "serde_timestamp")]
     expiration: DateTime<Utc>,
-    #[serde_as(as = "Timestamp")]
-    #[serde(rename = "iat")]
+    #[serde(rename = "iat", with = "serde_timestamp")]
     issue_time: DateTime<Utc>,
-    #[serde_as(as = "Option<Timestamp>")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_timestamp::option"
+    )]
     auth_time: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     nonce: Option<Nonce>,
-    #[serde(rename = "acr")]
+    #[serde(rename = "acr", skip_serializing_if = "Option::is_none")]
     auth_context_ref: Option<AuthenticationContextClass>,
-    #[serde(rename = "amr")]
+    #[serde(rename = "amr", skip_serializing_if = "Option::is_none")]
     auth_method_refs: Option<Vec<AuthenticationMethodReference>>,
-    #[serde(rename = "azp")]
+    #[serde(rename = "azp", skip_serializing_if = "Option::is_none")]
     authorized_party: Option<ClientId>,
-    #[serde(rename = "at_hash")]
+    #[serde(rename = "at_hash", skip_serializing_if = "Option::is_none")]
     access_token_hash: Option<AccessTokenHash>,
-    #[serde(rename = "c_hash")]
+    #[serde(rename = "c_hash", skip_serializing_if = "Option::is_none")]
     code_hash: Option<AuthorizationCodeHash>,
 
     #[serde(bound = "GC: GenderClaim")]

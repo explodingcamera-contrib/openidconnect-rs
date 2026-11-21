@@ -1,3 +1,4 @@
+use crate::helpers::{deserialize_vec_skip_invalid, deserialize_vec_skip_invalid_opt};
 use crate::http_utils::{check_content_type, MIME_TYPE_JSON};
 use crate::{
     AsyncHttpClient, AuthDisplay, AuthUrl, AuthenticationContextClass, ClaimName, ClaimType,
@@ -13,7 +14,6 @@ use http::method::Method;
 use http::status::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, skip_serializing_none, VecSkipError};
 use thiserror::Error;
 
 use std::fmt::Debug;
@@ -36,8 +36,6 @@ impl AdditionalProviderMetadata for EmptyAdditionalProviderMetadata {}
 
 /// Provider metadata returned by [OpenID Connect Discovery](
 /// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata).
-#[serde_as]
-#[skip_serializing_none]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[allow(clippy::type_complexity)]
 pub struct ProviderMetadata<A, AD, CA, CN, CT, G, JE, JK, K, RM, RT, S>
@@ -59,92 +57,144 @@ where
 {
     issuer: IssuerUrl,
     authorization_endpoint: AuthUrl,
+    #[serde(skip_serializing_if = "Option::is_none")]
     token_endpoint: Option<TokenUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     userinfo_endpoint: Option<UserInfoUrl>,
     jwks_uri: JsonWebKeySetUrl,
     #[serde(default = "JsonWebKeySet::default", skip)]
     jwks: JsonWebKeySet<K>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     registration_endpoint: Option<RegistrationUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     scopes_supported: Option<Vec<Scope>>,
     #[serde(bound(deserialize = "RT: ResponseType"))]
     response_types_supported: Vec<ResponseTypes<RT>>,
-    #[serde(bound(deserialize = "RM: ResponseMode"))]
+    #[serde(
+        bound(deserialize = "RM: ResponseMode"),
+        skip_serializing_if = "Option::is_none"
+    )]
     response_modes_supported: Option<Vec<RM>>,
-    #[serde(bound(deserialize = "G: GrantType"))]
+    #[serde(
+        bound(deserialize = "G: GrantType"),
+        skip_serializing_if = "Option::is_none"
+    )]
     grant_types_supported: Option<Vec<G>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     acr_values_supported: Option<Vec<AuthenticationContextClass>>,
     #[serde(bound(deserialize = "S: SubjectIdentifierType"))]
     subject_types_supported: Vec<S>,
-    #[serde(bound(deserialize = "K: JsonWebKey"))]
-    #[serde_as(as = "VecSkipError<_>")]
+    #[serde(
+        bound(deserialize = "K: JsonWebKey"),
+        deserialize_with = "deserialize_vec_skip_invalid"
+    )]
     id_token_signing_alg_values_supported: Vec<K::SigningAlgorithm>,
     #[serde(
         bound(deserialize = "JK: JweKeyManagementAlgorithm"),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     id_token_encryption_alg_values_supported: Option<Vec<JK>>,
     #[serde(
         bound(
             deserialize = "JE: JweContentEncryptionAlgorithm<KeyType = <K::SigningAlgorithm as JwsSigningAlgorithm>::KeyType>"
         ),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     id_token_encryption_enc_values_supported: Option<Vec<JE>>,
-    #[serde(bound(deserialize = "K: JsonWebKey"), default = "Option::default")]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
+    #[serde(
+        bound(deserialize = "K: JsonWebKey"),
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
+    )]
     userinfo_signing_alg_values_supported: Option<Vec<K::SigningAlgorithm>>,
     #[serde(
         bound(deserialize = "JK: JweKeyManagementAlgorithm"),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     userinfo_encryption_alg_values_supported: Option<Vec<JK>>,
     #[serde(
         bound(
             deserialize = "JE: JweContentEncryptionAlgorithm<KeyType = <K::SigningAlgorithm as JwsSigningAlgorithm>::KeyType>"
         ),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     userinfo_encryption_enc_values_supported: Option<Vec<JE>>,
-    #[serde(bound(deserialize = "K: JsonWebKey"), default = "Option::default")]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
+    #[serde(
+        bound(deserialize = "K: JsonWebKey"),
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
+    )]
     request_object_signing_alg_values_supported: Option<Vec<K::SigningAlgorithm>>,
     #[serde(
         bound(deserialize = "JK: JweKeyManagementAlgorithm"),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     request_object_encryption_alg_values_supported: Option<Vec<JK>>,
     #[serde(
         bound(
             deserialize = "JE: JweContentEncryptionAlgorithm<KeyType = <K::SigningAlgorithm as JwsSigningAlgorithm>::KeyType>"
         ),
-        default = "Option::default"
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
     )]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
     request_object_encryption_enc_values_supported: Option<Vec<JE>>,
-    #[serde(bound(deserialize = "CA: ClientAuthMethod"))]
+    #[serde(
+        bound(deserialize = "CA: ClientAuthMethod"),
+        skip_serializing_if = "Option::is_none"
+    )]
     token_endpoint_auth_methods_supported: Option<Vec<CA>>,
-    #[serde(bound(deserialize = "K: JsonWebKey"), default = "Option::default")]
-    #[serde_as(as = "Option<VecSkipError<_>>")]
+    #[serde(
+        bound(deserialize = "K: JsonWebKey"),
+        default = "Option::default",
+        deserialize_with = "deserialize_vec_skip_invalid_opt",
+        skip_serializing_if = "Option::is_none"
+    )]
     token_endpoint_auth_signing_alg_values_supported: Option<Vec<K::SigningAlgorithm>>,
-    #[serde(bound(deserialize = "AD: AuthDisplay"))]
+    #[serde(
+        bound(deserialize = "AD: AuthDisplay"),
+        skip_serializing_if = "Option::is_none"
+    )]
     display_values_supported: Option<Vec<AD>>,
-    #[serde(bound(deserialize = "CT: ClaimType"))]
+    #[serde(
+        bound(deserialize = "CT: ClaimType"),
+        skip_serializing_if = "Option::is_none"
+    )]
     claim_types_supported: Option<Vec<CT>>,
-    #[serde(bound(deserialize = "CN: ClaimName"))]
+    #[serde(
+        bound(deserialize = "CN: ClaimName"),
+        skip_serializing_if = "Option::is_none"
+    )]
     claims_supported: Option<Vec<CN>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     service_documentation: Option<ServiceDocUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     claims_locales_supported: Option<Vec<LanguageTag>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ui_locales_supported: Option<Vec<LanguageTag>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     claims_parameter_supported: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     request_parameter_supported: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     request_uri_parameter_supported: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     require_request_uri_registration: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     op_policy_uri: Option<OpPolicyUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     op_tos_uri: Option<OpTosUrl>,
 
     #[serde(bound(deserialize = "A: AdditionalProviderMetadata"), flatten)]

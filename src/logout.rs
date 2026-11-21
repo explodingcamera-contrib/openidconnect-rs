@@ -12,12 +12,10 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 use url::Url;
 
 /// Additional metadata for providers implementing [OpenID Connect RP-Initiated
 /// Logout 1.0](https://openid.net/specs/openid-connect-rpinitiated-1_0.html).
-#[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LogoutProviderMetadata<A>
 where
@@ -25,6 +23,7 @@ where
 {
     /// The end session endpoint as described in [OpenID Connect RP-Initiated
     /// Logout 1.0](https://openid.net/specs/openid-connect-rpinitiated-1_0.html).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub end_session_endpoint: Option<EndSessionUrl>,
     #[serde(bound = "A: AdditionalProviderMetadata", flatten)]
     /// A field for an additional struct implementing AdditionalProviderMetadata.

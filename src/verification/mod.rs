@@ -1,3 +1,4 @@
+use crate::helpers::serialize_identifier;
 use crate::jwt::{JsonWebToken, JsonWebTokenJsonPayloadSerde, NormalizedJsonWebTokenType};
 use crate::user_info::UserInfoClaimsImpl;
 use crate::{
@@ -304,7 +305,7 @@ where
             if let JsonWebTokenAlgorithm::Encryption(ref encryption_alg) = jose_header.alg {
                 return Err(ClaimsVerificationError::Unsupported(format!(
                     "JWE encryption is not currently supported (found algorithm `{}`)",
-                    serde_plain::to_string(encryption_alg).unwrap_or_else(|err| panic!(
+                    serialize_identifier(encryption_alg).unwrap_or_else(|err| panic!(
                         "encryption alg {encryption_alg:?} failed to serialize to a string: {err}"
                     )),
                 )));
@@ -396,13 +397,13 @@ where
                 return Err(ClaimsVerificationError::SignatureVerification(
                     SignatureVerificationError::DisallowedAlg(format!(
                         "algorithm `{}` is not one of: {}",
-                        serde_plain::to_string(&signature_alg).unwrap_or_else(|err| panic!(
+                        serialize_identifier(&signature_alg).unwrap_or_else(|err| panic!(
                             "signature alg {signature_alg:?} failed to serialize to a string: {err}",
                         )),
                         allowed_algs
                             .iter()
                             .map(
-                                |alg| serde_plain::to_string(alg).unwrap_or_else(|err| panic!(
+                                |alg| serialize_identifier(alg).unwrap_or_else(|err| panic!(
                                     "signature alg {alg:?} failed to serialize to a string: {err}",
                                 ))
                             )
@@ -475,7 +476,7 @@ where
                         key.key_id()
                             .map(|kid| format!("`{}`", **kid))
                             .unwrap_or_else(|| "null ID".to_string()),
-                        serde_plain::to_string(key.key_type()).unwrap_or_else(|err| panic!(
+                        serialize_identifier(key.key_type()).unwrap_or_else(|err| panic!(
                             "key type {:?} failed to serialize to a string: {}",
                             key.key_type(),
                             err,

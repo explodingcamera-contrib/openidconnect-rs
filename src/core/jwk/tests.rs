@@ -981,6 +981,14 @@ fn test_jwks_unsupported_key() {
     assert_eq!(jwks.keys()[1].crv, Some(CoreJsonCurveType::P256));
 }
 
+#[test]
+fn test_jwks_skips_key_with_duplicate_members() {
+    let jwks: CoreJsonWebKeySet =
+        serde_json::from_str(r#"{"keys":[{"kty":"EC","kty":"RSA"},{"kty":"RSA"}]}"#).unwrap();
+    assert_eq!(jwks.keys().len(), 1);
+    assert_eq!(jwks.keys()[0].kty, CoreJsonWebKeyType::RSA);
+}
+
 // Tests that JsonWebKeySet ignores keys with unsupported algorithms
 #[test]
 fn test_jwks_unsupported_alg() {

@@ -1,4 +1,5 @@
 use crate::core::{CoreGrantType, CoreJwsSigningAlgorithm};
+use crate::helpers::serialize_identifier;
 
 #[test]
 fn test_grant_type_serialize() {
@@ -11,13 +12,13 @@ fn test_grant_type_serialize() {
 }
 
 #[test]
-fn test_signature_alg_serde_plain() {
+fn test_signature_algorithm_name() {
     assert_eq!(
-        serde_plain::to_string(&CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256).unwrap(),
+        serialize_identifier(&CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256).unwrap(),
         "RS256"
     );
     assert_eq!(
-        serde_plain::from_str::<CoreJwsSigningAlgorithm>("RS256").unwrap(),
+        serde_json::from_str::<CoreJwsSigningAlgorithm>(r#""RS256""#).unwrap(),
         CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256
     );
 }
